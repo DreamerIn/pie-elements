@@ -7,6 +7,14 @@ import { withStyles } from '@material-ui/core/styles';
 import EditableHtml from '@pie-lib/editable-html';
 import { Authoring } from '@pie-lib/rubric';
 import { InputContainer } from '@pie-lib/config-ui';
+import { Collapse } from '@material-ui/core';
+
+import clsx from 'clsx';
+import CardContent from '@material-ui/core/CardContent';
+import IconButton from '@material-ui/core/IconButton';
+import { red } from '@material-ui/core/colors';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import DragIndicator from '@material-ui/icons/DragIndicator';
 
 const styles = theme => ({
   authoring: {
@@ -20,7 +28,11 @@ const styles = theme => ({
     flexDirection: 'row'
   },
   authoringColumn: {
-    flex: 1
+    flex: 3,
+    marginLeft: '24px'
+  },
+  authoringPointsColumn: {
+    flex: 2
   },
   scaleWrapper: {
     border: '1px solid lightgrey',
@@ -32,7 +44,7 @@ const styles = theme => ({
     width: '100%'
   },
   promptHolder: {
-    width: '100%',
+    flex: 1
   },
   scaleTitleWrapper: {
     display: 'flex',
@@ -40,13 +52,54 @@ const styles = theme => ({
     justifyContent: 'space-between'
   },
   trait: {
-    background: '#e3e3e3',
+    background: '#f1f1f1',
     margin: '16px 0',
     padding: '16px'
+  },
+
+
+  root: {
+    maxWidth: 345,
+  },
+  media: {
+    height: 0,
+    paddingTop: '56.25%', // 16:9
+  },
+  expand: {
+    transform: 'rotate(0deg)',
+    marginLeft: 'auto',
+    transition: theme.transitions.create('transform', {
+      duration: theme.transitions.duration.shortest,
+    }),
+  },
+  expandOpen: {
+    transform: 'rotate(180deg)',
+  },
+  avatar: {
+    backgroundColor: red[500],
+  },
+
+  traitNameRow: {
+    display: 'flex',
+    flexGrow: 1,
+    alignItems: 'center',
+
+    '& svg': {
+      marginRight: '16px'
+    }
+  },
+  collapsedContainer: {
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  addButton: {
+    float: 'right'
   }
 });
 
 export class Main extends React.Component {
+  state = {};
+
   onScaleChanged = (s, params) => {
     const { model, onModelChanged } = this.props;
     const { scales } = model || {};
@@ -57,6 +110,18 @@ export class Main extends React.Component {
 
     onModelChanged({ ...model, scales });
   }
+
+  onTraitChanged = (s, t, params) => {
+    const { model, onModelChanged } = this.props;
+    const { scales } = model || {};
+
+    scales[s].maxPoints = params.maxPoints;
+    scales[s].traits[t].scorePointsDescriptors = params.points;
+    scales[s].excludeZero = params.excludeZero;
+
+    onModelChanged({ ...model, scales });
+  }
+
 
   onScaleRemoved = (index) => {
     const { model, onModelChanged } = this.props;
@@ -161,6 +226,7 @@ export class Main extends React.Component {
   render() {
     const { model, classes } = this.props || {};
     const { scales } = model || {};
+    const { expanded } = this.state;
 
     return (
       <div className={classes.authoring}>
@@ -184,10 +250,10 @@ export class Main extends React.Component {
               </div>
 
               <div className={classes.authoringRow}>
-                <div className={classes.authoringColumn}>
-                  <div>
+                <div className={classes.authoringPointsColumn}>
+                  <div className={classes.traitNameRow}>
                     <InputContainer
-                      label='Trait identifier label:'
+                      label='Scale element label:'
                       className={classes.promptHolder}
                     >
                       <EditableHtml
@@ -200,6 +266,19 @@ export class Main extends React.Component {
                     </InputContainer>
                   </div>
 
+                  <h3>Score Points (with Labels):</h3>
+
+                  <Authoring
+                    value={{
+                      points: scale.scorePointsLabels,
+                      maxPoints: scale.maxPoints,
+                      excludeZero: scale.excludeZero
+                    }}
+                    onChange={(params) => this.onScaleChanged(scaleIndex, params)}
+                  />
+                </div>
+
+                <div className={classes.authoringColumn}>
                   <h3>Traits:</h3>
                   {
                     traits.map((trait, traitIndex) => {
@@ -207,92 +286,107 @@ export class Main extends React.Component {
 
                       return (
                         <div key={`scale-${scaleIndex}-trait-${traitIndex}`} className={classes.trait}>
-                          <InputContainer
-                            label='Trait Name:'
-                            className={classes.promptHolder}
-                          >
-                            <EditableHtml
-                              className={classes.prompt}
-                              markup={label || ''}
-                              onChange={prompt => this.onTraitPropertyChanged({
-                                scaleIndex,
-                                traitIndex,
-                                newValue: prompt,
-                                property: 'label'
+                          <div className={classes.traitNameRow}>
+                            <DragIndicator className={classes.dragIndicator}/>
+
+                            <InputContainer
+                              label='Trait Name:'
+                              className={classes.promptHolder}
+                            >
+                              <EditableHtml
+                                className={classes.prompt}
+                                markup={label || ''}
+                                onChange={prompt => this.onTraitPropertyChanged({
+                                  scaleIndex,
+                                  traitIndex,
+                                  newValue: prompt,
+                                  property: 'label'
+                                })}
+                                disableUnderline
+                              />
+                            </InputContainer>
+
+                            <IconButton
+                              className={clsx(classes.expand, {
+                                [classes.expandOpen]: expanded,
                               })}
-                              disableUnderline
-                            />
-                          </InputContainer>
+                              onClick={() => this.setState({ expanded: !expanded })}
+                              aria-expanded={expanded}
+                              aria-label="show more"
+                            >
+                              <ExpandMoreIcon/>
+                            </IconButton>
+                          </div>
 
-                          <InputContainer
-                            label='Trait Standards:'
-                            className={classes.promptHolder}
-                          >
-                            <EditableHtml
-                              className={classes.prompt}
-                              markup={standards.join(',') || ''}
-                              onChange={prompt => this.onTraitPropertyChanged({
-                                scaleIndex,
-                                traitIndex,
-                                newValue: prompt.split(','),
-                                property: 'standards'
-                              })}
+                          <Collapse in={expanded} timeout="auto" unmountOnExit>
+                            <CardContent>
+                              <div className={classes.collapsedContainer}>
+                                <InputContainer
+                                  label='Trait Standards:'
+                                  className={classes.promptHolder}
+                                >
+                                  <EditableHtml
+                                    className={classes.prompt}
+                                    markup={standards.join(',') || ''}
+                                    onChange={prompt => this.onTraitPropertyChanged({
+                                      scaleIndex,
+                                      traitIndex,
+                                      newValue: prompt.split(','),
+                                      property: 'standards'
+                                    })}
 
-                              disableUnderline
-                            />
-                          </InputContainer>
+                                    disableUnderline
+                                  />
+                                </InputContainer>
 
-                          <InputContainer
-                            label='Trait Description:'
-                            className={classes.promptHolder}
-                          >
-                            <EditableHtml
-                              className={classes.prompt}
-                              markup={description || ''}
-                              onChange={prompt => this.onTraitPropertyChanged({
-                                scaleIndex,
-                                traitIndex,
-                                newValue: prompt,
-                                property: 'description'
-                              })}
+                                <InputContainer
+                                  label='Trait Description:'
+                                  className={classes.promptHolder}
+                                >
+                                  <EditableHtml
+                                    className={classes.prompt}
+                                    markup={description || ''}
+                                    onChange={prompt => this.onTraitPropertyChanged({
+                                      scaleIndex,
+                                      traitIndex,
+                                      newValue: prompt,
+                                      property: 'description'
+                                    })}
 
-                              disableUnderline
-                            />
-                          </InputContainer>
+                                    disableUnderline
+                                  />
+                                </InputContainer>
 
-                          {
-                            (scorePointsValues || []).map((scorePointValue, index) => (
-                              <InputContainer
-                                key={`score_point_descriptor_${scorePointValue}`}
-                                label={`Score Point Descriptor - ${scorePointValue}`}
-                                className={classes.promptHolder}
-                              >
-                                <EditableHtml
-                                  className={classes.prompt}
-                                  markup={scorePointsDescriptors[index] || ''}
-                                  onChange={prompt => this.onScorePointDescriptorChanged(scaleIndex, traitIndex, index, prompt)}
-                                  disableUnderline
+                                <h4>Score Points Descriptions:</h4>
+                                <Authoring
+                                  value={{
+                                    points: scorePointsDescriptors,
+                                    maxPoints: scale.maxPoints,
+                                    excludeZero: scale.excludeZero
+                                  }}
+                                  onChange={(params) => this.onTraitChanged(scaleIndex, traitIndex, params)}
+                                  noPointsController={true}
                                 />
-                              </InputContainer>
-                            ))
-                          }
 
-                          <InputContainer
-                            label='Weighting:'
-                            className={classes.promptHolder}
-                          >
-                            <EditableHtml
-                              className={classes.prompt}
-                              markup={weighting || ''}
-                              onChange={prompt => this.onTraitPropertyChanged({
-                                scaleIndex,
-                                traitIndex,
-                                newValue: prompt,
-                                property: 'weighting'
-                              })}
-                              disableUnderline
-                            />
-                          </InputContainer>
+                                <InputContainer
+                                  label='Weighting:'
+                                  className={classes.promptHolder}
+                                >
+                                  <EditableHtml
+                                    className={classes.prompt}
+                                    markup={weighting || ''}
+                                    onChange={prompt => this.onTraitPropertyChanged({
+                                      scaleIndex,
+                                      traitIndex,
+                                      newValue: prompt,
+                                      property: 'weighting'
+                                    })}
+                                    disableUnderline
+                                  />
+                                </InputContainer>
+                              </div>
+                            </CardContent>
+                          </Collapse>
                         </div>
                       );
                     })
@@ -307,18 +401,6 @@ export class Main extends React.Component {
                   >
                     Add Trait
                   </Button>
-                </div>
-
-
-                <div className={classes.authoringColumn}>
-                  <Authoring
-                    value={{
-                      points: scale.scorePointsLabels,
-                      maxPoints: scale.maxPoints,
-                      excludeZero: scale.excludeZero
-                    }}
-                    onChange={(params) => this.onScaleChanged(scaleIndex, params)}
-                  />
                 </div>
               </div>
             </div>

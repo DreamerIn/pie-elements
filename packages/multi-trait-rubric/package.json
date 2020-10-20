@@ -11,5 +11,8 @@
   "gitHead": "0e14ff981bcdc8a89a0e58484026496701bfdbc3",
   "scripts": {
     "postpublish": "../../scripts/postpublish"
+  },
+  "dependencies": {
+    "clsx": "^1.1.1"
   }
 }
